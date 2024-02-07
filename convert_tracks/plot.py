@@ -1,8 +1,9 @@
 # import plotly.express as px
 import numpy as np
 import convert_motchallenge as ottrk_to_mot
-import datashader as ds
-import datashader.transfer_functions as tf
+# import datashader as ds
+# import datashader.transfer_functions as tf
+import matplotlib
 
 OTCdetections, MOTdetections = ottrk_to_mot(filename = "OTCamera13_FR20_2023-10-22_17-00-00_Sued")
 

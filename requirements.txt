@@ -18,3 +18,4 @@ ujson==5.7.0
 ultralytics==8.0.100
 numpy
 datashader
+matplotlib
