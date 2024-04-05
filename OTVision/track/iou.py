@@ -112,6 +112,7 @@ def track_iou(
 
     for frame_num in tqdm(detections, desc="Tracked frames", unit="frames"):
         detections_frame = detections[frame_num][DETECTIONS]
+        detections[detections]['TEST'] = 'Hallo'
         # apply low threshold to detections
         dets = [det for det in detections_frame if det[CONFIDENCE] >= sigma_l]
         new_detections[frame_num] = {}
@@ -131,6 +132,8 @@ def track_iou(
                     track[CLASS].append(best_match[CLASS])
                     track[MAX_CONF] = max(track[MAX_CONF], best_match[CONFIDENCE])
                     track[AGE] = 0
+                    track[TEST].append(best_match[CLASS])
+
 
                     updated_tracks.append(track)
 

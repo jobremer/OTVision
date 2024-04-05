@@ -8,6 +8,8 @@ tests/resources/
 *.log
 !test.log
 *.otvision.yaml
+*.otevents
+*.otgtevents
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -181,3 +183,4 @@ Thumbs.db
 #data
 /data/*
 convert_tracks/Data
+test/data
