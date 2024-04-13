@@ -42,9 +42,17 @@ from OTVision.dataformat import (
     W,
     X,
     Y,
+    X_VECTOR,
+    Y_VECTOR,
+    AMOUNT_VECTOR,
+    DIRECTION_VECTOR,
 )
 
 from .iou_util import iou
+
+# New packages
+import numpy as np
+import scipy as sp
 
 
 def make_bbox(obj: dict) -> tuple[float, float, float, float]:
@@ -74,6 +82,26 @@ def center(obj: dict) -> tuple[float, float]:
         tuple[float, float]: _description_
     """
     return obj[X], obj[Y]
+
+
+def get_direction_vector(track, best_match):
+    """
+    Calculate the x- & y- vectors and the vector amount for the current track and its best match
+
+    Args:
+        track (dict)
+        best_match (dict)
+
+    Returns:
+        list: [float, float, float]
+    """
+    
+    vector = [track[CENTER][-1], [best_match['x'], best_match['y']]]
+    X_VECTOR = vector[0][0] - vector[-1][0]
+    Y_VECTOR = vector[0][1] - vector[-1][1]
+    AMOUNT_VECTOR = np.sqrt(np.square(X_VECTOR) + np.square(Y_VECTOR))
+    
+    return X_VECTOR, Y_VECTOR, AMOUNT_VECTOR
 
 
 def track_iou(
@@ -112,18 +140,26 @@ def track_iou(
 
     for frame_num in tqdm(detections, desc="Tracked frames", unit="frames"):
         detections_frame = detections[frame_num][DETECTIONS]
-        detections[detections]['TEST'] = 'Hallo'
         # apply low threshold to detections
         dets = [det for det in detections_frame if det[CONFIDENCE] >= sigma_l]
         new_detections[frame_num] = {}
         updated_tracks: list = []
+        not_updated_tracks: list = []
         saved_tracks: list = []
+        
         for track in tracks_active:
-            if dets:
+            direction_vector: list = []
+            if dets: # check if dets in not empty
+                
                 # get det with highest iou
                 best_match = max(
                     dets, key=lambda x: iou(track[BBOXES][-1], make_bbox(x))
                 )
+                
+                # TODO: Vector of BB-centers
+                
+                direction_vector = get_direction_vector(track, best_match)
+                
                 if iou(track[BBOXES][-1], make_bbox(best_match)) >= sigma_iou:
                     track[FRAMES].append(int(frame_num))
                     track[BBOXES].append(make_bbox(best_match))
@@ -132,8 +168,10 @@ def track_iou(
                     track[CLASS].append(best_match[CLASS])
                     track[MAX_CONF] = max(track[MAX_CONF], best_match[CONFIDENCE])
                     track[AGE] = 0
-                    track[TEST].append(best_match[CLASS])
-
+                    track[DIRECTION_VECTOR].append(direction_vector)
+                    
+                    
+                    # if vector[-1] close to vector: append
 
                     updated_tracks.append(track)
 
@@ -142,9 +180,14 @@ def track_iou(
                     # best_match[TRACK_ID] = track[TRACK_ID]
                     best_match[FIRST] = False
                     new_detections[frame_num][track[TRACK_ID]] = best_match
+                
 
             # if track was not updated
             if not updated_tracks or track is not updated_tracks[-1]:
+                # Add direction vectors
+                
+                    
+                
                 # finish track when the conditions are met
                 if track[AGE] < t_miss_max:
                     track[AGE] += 1
@@ -154,6 +197,7 @@ def track_iou(
                     and track[FRAMES][-1] - track[FRAMES][0] >= t_min
                 ):
                     # tracks_finished.append(track)
+                    track[DIRECTION_VECTOR][0] = []
                     vehIDs_finished.append(track[TRACK_ID])
         # TODO: Alter der Tracks
         # create new tracks
@@ -172,6 +216,7 @@ def track_iou(
                     TRACK_ID: vehID,
                     START_FRAME: int(frame_num),
                     AGE: 0,
+                    DIRECTION_VECTOR: []
                 }
             )
             # det[TRACK_ID] = vehID
