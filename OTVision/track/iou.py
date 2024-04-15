@@ -44,8 +44,13 @@ from OTVision.dataformat import (
     Y,
     X_VECTOR,
     Y_VECTOR,
-    AMOUNT_VECTOR,
+    VECTOR_AMOUNT,
     DIRECTION_VECTOR,
+    VECTOR_AMOUNT_ROLLING_MEAN,
+    X_VECTOR_ROLLING_MEAN,
+    Y_VECTOR_ROLLING_MEAN,
+    VECTOR_ROLLING_MEAN,
+    CENTER_EXTRAPOLATED,
 )
 
 from .iou_util import iou
@@ -53,6 +58,7 @@ from .iou_util import iou
 # New packages
 import numpy as np
 import scipy as sp
+from scipy.ndimage import uniform_filter1d
 
 
 def make_bbox(obj: dict) -> tuple[float, float, float, float]:
@@ -97,12 +103,19 @@ def get_direction_vector(track, best_match):
     """
     
     vector = [track[CENTER][-1], [best_match['x'], best_match['y']]]
-    X_VECTOR = vector[0][0] - vector[-1][0]
-    Y_VECTOR = vector[0][1] - vector[-1][1]
+    X_VECTOR = vector[-1][0] - vector[0][0]
+    Y_VECTOR = vector[-1][1] - vector[0][1]
     AMOUNT_VECTOR = np.sqrt(np.square(X_VECTOR) + np.square(Y_VECTOR))
     
     return X_VECTOR, Y_VECTOR, AMOUNT_VECTOR
 
+def get_rolling_mean(track,
+                     t_min: int = CONFIG["TRACK"]["IOU"]["T_MIN"]):
+    x_cumsum = sum(track[X_VECTOR][-t_min:])
+    y_cumsum = sum(track[Y_VECTOR][-t_min:])
+    
+    return [x_cumsum / float(t_min), y_cumsum / float(t_min)]
+               
 
 def track_iou(
     detections: list,  # TODO: Type hint nested list during refactoring
@@ -133,7 +146,7 @@ def track_iou(
     _check_types(sigma_l, sigma_h, sigma_iou, t_min, t_miss_max)
 
     tracks_active: list = []
-    # tracks_finished = []
+    tracks_finished = []
     vehID: int = 0
     vehIDs_finished: list = []
     new_detections: dict = {}
@@ -144,21 +157,18 @@ def track_iou(
         dets = [det for det in detections_frame if det[CONFIDENCE] >= sigma_l]
         new_detections[frame_num] = {}
         updated_tracks: list = []
-        not_updated_tracks: list = []
         saved_tracks: list = []
         
         for track in tracks_active:
             direction_vector: list = []
             if dets: # check if dets in not empty
-                
                 # get det with highest iou
                 best_match = max(
                     dets, key=lambda x: iou(track[BBOXES][-1], make_bbox(x))
-                )
-                
-                # TODO: Vector of BB-centers
-                
+                    )
+                                                        
                 direction_vector = get_direction_vector(track, best_match)
+                rolling_mean = get_rolling_mean(track)
                 
                 if iou(track[BBOXES][-1], make_bbox(best_match)) >= sigma_iou:
                     track[FRAMES].append(int(frame_num))
@@ -168,7 +178,11 @@ def track_iou(
                     track[CLASS].append(best_match[CLASS])
                     track[MAX_CONF] = max(track[MAX_CONF], best_match[CONFIDENCE])
                     track[AGE] = 0
-                    track[DIRECTION_VECTOR].append(direction_vector)
+                    track[X_VECTOR].append(direction_vector[0])
+                    track[Y_VECTOR].append(direction_vector[1])
+                    track[VECTOR_AMOUNT].append(direction_vector[2])
+                    track[VECTOR_ROLLING_MEAN] = (rolling_mean[0], rolling_mean[1])
+                    
                     
                     
                     # if vector[-1] close to vector: append
@@ -184,9 +198,10 @@ def track_iou(
 
             # if track was not updated
             if not updated_tracks or track is not updated_tracks[-1]:
-                # Add direction vectors
-                
-                    
+                # Extrapolate with vector rolling means
+                # track["VECTOR_ROLLING_MEAN"] = (track[X_VECTOR_ROLLING_MEAN], track[Y_VECTOR_ROLLING_MEAN])
+                # track[CENTER_EXTRAPOLATED] = track[CENTER][-1] + track[VECTOR_ROLLING_MEAN]
+                # track[CENTER_EXTRAPOLATED] = tuple(map(lambda i, j: i + j, track[CENTER][-1], track[VECTOR_ROLLING_MEAN]))
                 
                 # finish track when the conditions are met
                 if track[AGE] < t_miss_max:
@@ -196,8 +211,8 @@ def track_iou(
                     track[MAX_CONF] >= sigma_h
                     and track[FRAMES][-1] - track[FRAMES][0] >= t_min
                 ):
-                    # tracks_finished.append(track)
-                    track[DIRECTION_VECTOR][0] = []
+                    tracks_finished.append(track)
+                    # track[DIRECTION_VECTOR][0] = []
                     vehIDs_finished.append(track[TRACK_ID])
         # TODO: Alter der Tracks
         # create new tracks
@@ -216,7 +231,13 @@ def track_iou(
                     TRACK_ID: vehID,
                     START_FRAME: int(frame_num),
                     AGE: 0,
-                    DIRECTION_VECTOR: []
+                    DIRECTION_VECTOR: [],
+                    X_VECTOR: [],
+                    Y_VECTOR: [],
+                    VECTOR_AMOUNT: [],
+                    X_VECTOR_ROLLING_MEAN: [],
+                    Y_VECTOR_ROLLING_MEAN: [],
+                    CENTER_EXTRAPOLATED: [],
                 }
             )
             # det[TRACK_ID] = vehID

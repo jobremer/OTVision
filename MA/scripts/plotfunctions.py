@@ -137,17 +137,26 @@ def plot_trajectory(detections, filepath, box, fontsize = 15, titletext = "", sh
 
 
 
-def plot_BBoxes(data, filepath, box, track_id = np.NaN, framerate = 20, fontsize = 15, trajectories = False, titletext = "", savename = ""):
+def plot_BBoxes(data, filepath,
+                box: list, 
+                track_id: int = np.NaN, 
+                framerate: int = 20, 
+                fontsize: int = 15, 
+                include_trajectories: bool = False,
+                custom_picture_section: list = [],
+                include_legend: bool = False,
+                titletext: str = "", 
+                savename: str = ""):
     import matplotlib.pyplot as plt
     import matplotlib.image as mpimg
     from matplotlib.patches import Rectangle
     from PIL import Image
     import numpy as np
     
-    # if trackid == np.NaN:
-    #     detections = data
-    # else:
-    #     detections = data[data['track-id'] == track_id]
+    if track_id == np.NaN:
+        detections = data
+    else:
+        detections = data[data['track-id'] == track_id]
     
     detections = data
     
@@ -167,7 +176,7 @@ def plot_BBoxes(data, filepath, box, track_id = np.NaN, framerate = 20, fontsize
         
         # Masse der Boundding Box
         width = box[0]
-        height = box[h]
+        height = box[1]
         
         farbe = farbpalette(index % farbpalette.N)
         
@@ -175,8 +184,8 @@ def plot_BBoxes(data, filepath, box, track_id = np.NaN, framerate = 20, fontsize
         plt.gca().add_patch(Rectangle((x, y), w, h, edgecolor=farbe, facecolor='none', linewidth=2))
         plt.plot(x, y, linewidth=2, color='yellow')
         
-    if trajectories == True:
-        plot_trajectory(detections)
+    if include_trajectories == True:
+        plot_trajectory(detections=detections, filepath=filepath, box=box)
    
 
     # Plot-Einstellungen
@@ -186,15 +195,22 @@ def plot_BBoxes(data, filepath, box, track_id = np.NaN, framerate = 20, fontsize
     plt.ylabel('y-Koordinate', size=fontsize, weight = 'bold')
     plt.xticks(fontsize=fontsize-2)
     plt.yticks(fontsize=fontsize-2)
-    # plt.legend(fontsize=10)
+    
+    if include_legend == True:
+        plt.legend(fontsize=10)
 
     # plt.xlim(0, 1296)
     # plt.ylim(0, 972)
-    plt.xlim(0, width)
-    plt.ylim(0, height)
+    
+    if custom_picture_section != []:
+        plt.xlim(custom_picture_section[0], custom_picture_section[1])
+        plt.ylim(custom_picture_section[2], custom_picture_section[3])
+    else:
+        plt.xlim(0, width)
+        plt.ylim(0, height)
+        
     plt.gca().invert_yaxis()
     plt.imshow(background)
-    
     
     if titletext !="":
         plt.title(titletext, fontsize=fontsize+4, weight='bold')

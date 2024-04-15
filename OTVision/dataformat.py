@@ -68,7 +68,13 @@ MAX_CONF: str = "max_conf"
 FIRST: str = "first"
 FINISHED: str = "finished"
 START_FRAME: str = "start_frame"
-X_VECTOR: str = 'x_vector'
-Y_VECTOR: str = 'y_vector'
-AMOUNT_VECTOR: str = 'amount_vector'
-DIRECTION_VECTOR: str = "direction_vectors"
+X_VECTOR: str = "x_vector"
+Y_VECTOR: str = "y_vector"
+VECTOR_AMOUNT: str = "vector_amount"
+DIRECTION_VECTOR: str = "direction_vector"
+X_VECTOR_ROLLING_MEAN: str = "x_vector_rolling_mean"
+Y_VECTOR_ROLLING_MEAN: str = "y_vector_rolling_mean"
+VECTOR_ROLLING_MEAN: str = "vector_rolling_mean"
+VECTOR_AMOUNT_ROLLING_MEAN: str = "vector_amount_rolling_mean"
+CENTER_EXTRAPOLATED: str = "center_extrapolated"
+

@@ -28,6 +28,8 @@ import OTVision.config as config
 from OTVision.helpers.files import check_if_all_paths_exist
 from OTVision.helpers.log import DEFAULT_LOG_FILE, LOGGER_NAME, VALID_LOG_LEVELS, log
 
+from MA.scripts.plotfunctions import plot_trajectory
+
 
 def parse(argv: list[str] | None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Track objects through detections")
@@ -235,6 +237,8 @@ def main(argv: list[str] | None = None) -> None:  # sourcery skip: assign-if-exp
     except Exception:
         log.exception("")
         raise
+    
+    
 
 
 if __name__ == "__main__":
