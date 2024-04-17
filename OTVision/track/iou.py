@@ -167,7 +167,6 @@ def track_iou(
                     and track[FRAMES][-1] - track[FRAMES][0] >= t_min
                 ):
                     # tracks_finished.append(track)
-                    track[DIRECTION_VECTOR][0] = []
                     vehIDs_finished.append(track[TRACK_ID])
         # TODO: Alter der Tracks
         # create new tracks
