@@ -68,7 +68,3 @@ MAX_CONF: str = "max_conf"
 FIRST: str = "first"
 FINISHED: str = "finished"
 START_FRAME: str = "start_frame"
-X_VECTOR: str = 'x_vector'
-Y_VECTOR: str = 'y_vector'
-AMOUNT_VECTOR: str = 'amount_vector'
-DIRECTION_VECTOR: str = "direction_vectors"

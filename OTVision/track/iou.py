@@ -42,10 +42,6 @@ from OTVision.dataformat import (
     W,
     X,
     Y,
-    X_VECTOR,
-    Y_VECTOR,
-    AMOUNT_VECTOR,
-    DIRECTION_VECTOR,
 )
 
 from .iou_util import iou
@@ -82,26 +78,6 @@ def center(obj: dict) -> tuple[float, float]:
         tuple[float, float]: _description_
     """
     return obj[X], obj[Y]
-
-
-def get_direction_vector(track, best_match):
-    """
-    Calculate the x- & y- vectors and the vector amount for the current track and its best match
-
-    Args:
-        track (dict)
-        best_match (dict)
-
-    Returns:
-        list: [float, float, float]
-    """
-    
-    vector = [track[CENTER][-1], [best_match['x'], best_match['y']]]
-    X_VECTOR = vector[0][0] - vector[-1][0]
-    Y_VECTOR = vector[0][1] - vector[-1][1]
-    AMOUNT_VECTOR = np.sqrt(np.square(X_VECTOR) + np.square(Y_VECTOR))
-    
-    return X_VECTOR, Y_VECTOR, AMOUNT_VECTOR
 
 
 def track_iou(
@@ -148,17 +124,12 @@ def track_iou(
         saved_tracks: list = []
         
         for track in tracks_active:
-            direction_vector: list = []
             if dets: # check if dets in not empty
                 
                 # get det with highest iou
                 best_match = max(
                     dets, key=lambda x: iou(track[BBOXES][-1], make_bbox(x))
                 )
-                
-                # TODO: Vector of BB-centers
-                
-                direction_vector = get_direction_vector(track, best_match)
                 
                 if iou(track[BBOXES][-1], make_bbox(best_match)) >= sigma_iou:
                     track[FRAMES].append(int(frame_num))
@@ -168,7 +139,6 @@ def track_iou(
                     track[CLASS].append(best_match[CLASS])
                     track[MAX_CONF] = max(track[MAX_CONF], best_match[CONFIDENCE])
                     track[AGE] = 0
-                    track[DIRECTION_VECTOR].append(direction_vector)
                     
                     
                     # if vector[-1] close to vector: append
@@ -216,7 +186,6 @@ def track_iou(
                     TRACK_ID: vehID,
                     START_FRAME: int(frame_num),
                     AGE: 0,
-                    DIRECTION_VECTOR: []
                 }
             )
             # det[TRACK_ID] = vehID
