@@ -77,4 +77,6 @@ Y_VECTOR_ROLLING_MEAN: str = "y_vector_rolling_mean"
 VECTOR_ROLLING_MEAN: str = "vector_rolling_mean"
 VECTOR_AMOUNT_ROLLING_MEAN: str = "vector_amount_rolling_mean"
 CENTER_EXTRAPOLATED: str = "center_extrapolated"
+BBOXES_EXTRAPOLATED: str = 'bboxes_extrapolated'
+DIMENSIONS: str = 'dimensions'
 
