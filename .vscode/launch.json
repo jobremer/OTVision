@@ -104,6 +104,26 @@
             },
             "console": "integratedTerminal",
             "justMyCode": false
+        },
+        {
+            "name": "Python: Track Luecke Bikes",
+            "type": "python",
+            "request": "launch",
+            "preLaunchTask": "Build detect debug environment",
+            "postDebugTask": "Tear down debug environment",
+            "program": "${workspaceFolder}/track.py",
+            "args": [
+                "--paths",
+                ".tmp/debug/OTCamera07_FR20_2022-10-31_16-30-07.otdet"
+            ],
+            "windows": {
+                "args": [
+                    "--path",
+                    "tests\\data\\OTCamera07_FR20_2022-10-31_16-30-07.otdet"
+                ]
+            },
+            "console": "integratedTerminal",
+            "justMyCode": false
         }
     ]
 }
