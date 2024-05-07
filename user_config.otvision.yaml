@@ -26,6 +26,7 @@ TRACK:
     SIGMA_L: 0.27
     T_MIN: 5
     T_MISS_MAX: 51
+    T_EXTRAPOLATE: 15
   OVERWRITE: true
 
 LOG:

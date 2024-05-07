@@ -93,7 +93,7 @@ def plot_histogram(detections, xlim = 0, binwidth = 100, fontsize = 15, xText = 
         plt.savefig("Z:/Masterthesis/Images/" + savename + ".png")
     
 
-def plot_trajectory(detections, filepath, box, fontsize = 15, titletext = "", show_background = False, savename = ""):
+def plot_trajectory(detections, filepath, box, fontsize = 15, titletext = "", show_background = False, savename = "", marker = False):
     import matplotlib.pyplot as plt
     import matplotlib.image as mpimg
     
@@ -106,7 +106,12 @@ def plot_trajectory(detections, filepath, box, fontsize = 15, titletext = "", sh
     for group_name, group_df in grouped_df:
         x = group_df['x0']
         y = group_df['y0']
-        plt.plot(x, y, label=f'Track ID: {group_name}', linewidth=1)
+        
+        if marker == True:
+            plt.plot(x, y, label=f'Track ID: {group_name}', linewidth=1, marker='.', markersize=0.7)
+        else:
+            plt.plot(x, y, label=f'Track ID: {group_name}', linewidth=1)
+        # plt.plot(x, y, 'o', markersize=0.5)
         # plt.plot(x, y, label=f'Track ID: {group_name}', linewidth=1)
 
     # Plot-Einstellungen

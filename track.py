@@ -80,6 +80,11 @@ def parse(argv: list[str] | None) -> argparse.Namespace:
         help="Set t_miss_max paramter for tracking",
     )
     parser.add_argument(
+        "--t_extrapolate",
+        type=int,
+        help="Set t_extrapolate paramter for tracking",
+    )
+    parser.add_argument(
         "--log_level_console",
         type=str,
         choices=VALID_LOG_LEVELS,
@@ -155,6 +160,12 @@ def _process_parameters(
         t_miss_max = config.CONFIG[config.TRACK][config.IOU][config.T_MISS_MAX]
     else:
         t_miss_max = args.t_miss_max
+    
+    if args.t_extrapolate is None:
+        t_extrapolate = config.CONFIG[config.TRACK][config.IOU][config.T_EXTRAPOLATE]
+    else:
+        t_extrapolate = args.t_extrapolate
+    
 
     if args.overwrite is None:
         overwrite = config.CONFIG[config.TRACK][config.OVERWRITE]

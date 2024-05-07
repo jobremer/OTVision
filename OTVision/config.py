@@ -70,6 +70,7 @@ SIGMA_IOU = "SIGMA_IOU"
 SIGMA_L = "SIGMA_L"
 T_MIN = "T_MIN"
 T_MISS_MAX = "T_MISS_MAX"
+T_EXTRAPOLATE = 'T_EXTRAPOLATE'
 TRACK = "TRACK"
 TRACKS = "TRACKS"
 TRANSFORM = "TRANSFORM"
@@ -334,6 +335,7 @@ class _TrackIouConfig:
     sigma_iou: float = 0.38
     t_min: int = 5
     t_miss_max: int = 51
+    t_extrapolate: int = 5
 
     @staticmethod
     def from_dict(d: dict) -> "_TrackIouConfig":
@@ -343,6 +345,7 @@ class _TrackIouConfig:
             d.get(SIGMA_IOU, _TrackIouConfig.sigma_iou),
             d.get(T_MIN, _TrackIouConfig.t_min),
             d.get(T_MISS_MAX, _TrackIouConfig.t_miss_max),
+            d.get(T_EXTRAPOLATE, _TrackIouConfig.t_extrapolate)
         )
 
     def to_dict(self) -> dict:
@@ -352,6 +355,7 @@ class _TrackIouConfig:
             SIGMA_IOU: self.sigma_iou,
             T_MIN: self.t_min,
             T_MISS_MAX: self.t_miss_max,
+            T_EXTRAPOLATE: self.t_extrapolate
         }
 
 
@@ -691,6 +695,7 @@ CONFIG[TRACK][IOU][SIGMA_H] = 0.42  # 0.420
 CONFIG[TRACK][IOU][SIGMA_IOU] = 0.38  # 0.381
 CONFIG[TRACK][IOU][T_MIN] = 5
 CONFIG[TRACK][IOU][T_MISS_MAX] = 51  # 51
+CONFIG[TRACK][IOU][T_EXTRAPOLATE] = 5  # 5
 CONFIG[TRACK][OVERWRITE] = True
 
 # UNDISTORT

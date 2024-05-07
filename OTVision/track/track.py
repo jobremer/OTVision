@@ -41,6 +41,7 @@ from OTVision.config import (
     SIGMA_L,
     T_MIN,
     T_MISS_MAX,
+    T_EXTRAPOLATE,
     TRACK,
 )
 from OTVision.dataformat import DATA, DETECTIONS, METADATA
@@ -63,6 +64,7 @@ def main(
     t_min: int = CONFIG[TRACK][IOU][T_MIN],
     t_miss_max: int = CONFIG[TRACK][IOU][T_MISS_MAX],
     overwrite: bool = CONFIG[TRACK][OVERWRITE],
+    t_extrapolate: int = CONFIG[TRACK][IOU][T_EXTRAPOLATE],
     tracking_run_id_generator: IdGenerator = lambda: str(uuid.uuid4()),
 ) -> None:
     """Read detections from otdet file, perform tracking using iou tracker and
@@ -139,6 +141,7 @@ def main(
             dataformat.SIGMA_IOU: sigma_iou,
             dataformat.T_MIN: t_min,
             dataformat.T_MISS_MAX: t_miss_max,
+            dataformat.T_EXTRAPOLATE: t_extrapolate
         }
         frame_group.update_metadata(metadata, tracker_data)
 
@@ -151,6 +154,7 @@ def main(
             sigma_iou=sigma_iou,
             t_min=t_min,
             t_miss_max=t_miss_max,
+            t_extrapolate=t_extrapolate,
         )
 
         log.debug(f"Successfully tracked {frame_group.order_key}")
@@ -186,6 +190,7 @@ def track(
     sigma_iou: float = CONFIG[TRACK][IOU][SIGMA_IOU],
     t_min: int = CONFIG[TRACK][IOU][T_MIN],
     t_miss_max: int = CONFIG[TRACK][IOU][T_MISS_MAX],
+    t_extrapolate: int = CONFIG[TRACK][IOU][T_EXTRAPOLATE],
 ) -> dict[str, dict]:  # TODO: Type hint nested dict during refactoring
     """Perform tracking using track_iou with arguments and add metadata to tracks.
 
@@ -222,6 +227,7 @@ def track(
         sigma_iou=sigma_iou,
         t_min=t_min,
         t_miss_max=t_miss_max,
+        t_extrapolate=t_extrapolate,
     )
     log.info("Detections tracked")
 

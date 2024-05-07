@@ -58,6 +58,7 @@ SIGMA_H: str = "sigma_h"
 SIGMA_IOU: str = "sigma_iou"
 T_MIN: str = "t_min"
 T_MISS_MAX: str = "t_miss_max"
+T_EXTRAPOLATE: str = "t_extrapolate"
 
 # iou
 BBOXES: str = "bboxes"

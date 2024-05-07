@@ -183,4 +183,4 @@ Thumbs.db
 #data
 /data/*
 convert_tracks/Data
-test/data
+tests/data/*
