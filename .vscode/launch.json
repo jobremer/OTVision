@@ -144,6 +144,26 @@
             },
             "console": "integratedTerminal",
             "justMyCode": false
+        },
+        {
+            "name": "Python: Track Luecke Delivery",
+            "type": "python",
+            "request": "launch",
+            "preLaunchTask": "Build detect debug environment",
+            "postDebugTask": "Tear down debug environment",
+            "program": "${workspaceFolder}/track.py",
+            "args": [
+                "--paths",
+                ".tmp/debug/otcamera-tud03_FR20_2023-10-26_08-00-53_delivery.otdet"
+            ],
+            "windows": {
+                "args": [
+                    "--path",
+                    "tests\\data\\otcamera-tud03_FR20_2023-10-26_08-00-53_delivery.otdet"
+                ]
+            },
+            "console": "integratedTerminal",
+            "justMyCode": false
         }
     ]
 }
