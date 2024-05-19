@@ -146,6 +146,49 @@ def get_rolling_mean(first, second,
     
 #     return [x_cumsum / float(t_min), y_cumsum / float(t_min)]
 
+def get_rolling_mean_angle(vectors): # Written with help of ChatGPT3.5
+    angles = []
+    if len(vectors) > 1:
+        for i in range(len(vectors) - 1):
+            vec1 = vectors[i]
+            vec2 = vectors[i + 1]
+
+            radians = np.arctan2(vec2[1], vec2[0]) - np.arctan2(vec1[1], vec1[0])
+            degrees = np.degrees(radians)
+            # Konvertierung negativer Winkel in positive Winkel
+            # if degrees > 180:
+            #     degrees = degrees - 360
+            # elif degrees < -180:
+            #     degrees = degrees + 360
+            
+            angles.append(degrees)
+    
+    else:
+        angles.append(0)
+    
+    # Berechne den Mittelwert der letzten fünf Winkel
+    last_five_angles = angles[-5:]
+    mean_angle = np.median(angles[-5:])
+    return mean_angle
+
+def rotate(vector, angle_degree): # Rotate vector
+    (x,y) = vector
+    angle_radian = angle_degree*np.pi/180
+    newx = x*np.cos(angle_radian) - y*np.sin(angle_radian)
+    newy = x*np.sin(angle_radian) + y*np.cos(angle_radian)
+    return [newx, newy]
+ 
+
+   
+
+# def get_rolling_mean3(first, second, t_min: int = CONFIG["TRACK"]["IOU"]["T_MIN"]):
+#     nth_last_index = max(len(first) - 5, 0)  # Index des fünftletzten Elements
+#     t_min = min(t_min, len(first) - nth_last_index)  # Aktualisieren von t_min, um sicherzustellen, dass es nicht größer ist als die Anzahl der Elemente ab dem fünftletzten Element
+#     x_cumsum = sum(first[nth_last_index:])  # Die Summe beginnt beim fünftletzten Element
+#     y_cumsum = sum(second[nth_last_index:])  # Die Summe beginnt beim fünftletzten Element
+    
+#     return [x_cumsum / float(t_min), y_cumsum / float(t_min)]
+
 
 def track_iou(
     detections: list,  # TODO: Type hint nested list during refactoring
@@ -212,18 +255,13 @@ def track_iou(
                     track[CLASS].append(best_match[CLASS])
                     track[MAX_CONF] = max(track[MAX_CONF], best_match[CONFIDENCE])
                     track[AGE] = 0
+                    track[X].append(direction_vector[0])
+                    track[Y].append(direction_vector[1])
                     track[W].append(best_match[W])
                     track[H].append(best_match[H])
                     track[X_VECTOR].append(direction_vector[0])
                     track[Y_VECTOR].append(direction_vector[1])
                     # track[VECTOR_AMOUNT].append(direction_vector[2])
-                    track['rolling_mean_center'] = get_rolling_mean(first =  track[X_VECTOR],  second = track[Y_VECTOR])
-                    track['rolling_mean_center_list'].append(track['rolling_mean_center'])
-                    track[VECTOR_ROLLING_MEAN] = list((track['rolling_mean_center'][0], track['rolling_mean_center'][1]))
-                    track['VECTOR_ROLLING_MEAN_list'].append(track[VECTOR_ROLLING_MEAN])
-                    rolling_mean_BBOX = get_rolling_mean(first =  track[W],  second = track[H])
-                    track[BBOXES_ROLLING_MEAN] = list((rolling_mean_BBOX[0], rolling_mean_BBOX[1]))
-                    track[MODE] = 'IOU'
                     track['mode_list'].append('IOU')
                     
                     
@@ -241,51 +279,54 @@ def track_iou(
             # if track was not updated
             if not updated_tracks or track is not updated_tracks[-1]:
                 if track[AGE] <= 10: #t_extrapolate
-                    # Extrapolate BB with vector rolling means
+                    if track[W] != [] and (track[X][-1] >= 0 or track[X][-1] <= 800) and (track[Y][-1] >= 0 or track[Y][-1] <= 600):
                     
-                    
-                    
-                    track[CENTER_EXTRAPOLATED] = [a + b for a, b in zip(list(track[CENTER][-1]), track[VECTOR_ROLLING_MEAN])]
-                    track['CENTER_EXTRAPOLATED_list'].append(track[CENTER_EXTRAPOLATED])
-                    
-                    temp = {}
-                    if track[W] != []:
-                        # track[BBOXES_EXTRAPOLATED] = make_extrapolated_bbox(track[CENTER_EXTRAPOLATED] + [track[W][-1], track[H][-1]])
+                        track['rolling_mean_center'] = get_rolling_mean(first =  track[X_VECTOR],  second = track[Y_VECTOR])
+                        track['rolling_mean_center_list'].append(track['rolling_mean_center'])
+                        track[VECTOR_ROLLING_MEAN] = list((track['rolling_mean_center'][0], track['rolling_mean_center'][1]))
+                        track['VECTOR_ROLLING_MEAN_list'].append(track[VECTOR_ROLLING_MEAN])
+                        rolling_mean_BBOX = get_rolling_mean(first =  track[W],  second = track[H])
+                        track[BBOXES_ROLLING_MEAN] = list((rolling_mean_BBOX[0], rolling_mean_BBOX[1]))
+                        
+
+                        # # Extrapolate BB with vector rolling means
+                        # track[CENTER_EXTRAPOLATED] = [a + b for a, b in zip(list(track[CENTER][-1]), track[VECTOR_ROLLING_MEAN])]
+                        # track['CENTER_EXTRAPOLATED_list'].append(track[CENTER_EXTRAPOLATED])
+                        
+                        # Include rotation
+                        track['rolling_mean_angle'].append(get_rolling_mean_angle(vectors = track['rolling_mean_center_list']))
+                        track['vector_rolling_mean_rotated'].append(rotate(track[VECTOR_ROLLING_MEAN], track['rolling_mean_angle'][-1]))
+                        track[CENTER_EXTRAPOLATED] = [a + b for a, b in zip(list(track[CENTER][-1]), track['vector_rolling_mean_rotated'][-1])]
+                        track['CENTER_EXTRAPOLATED_list'].append(track[CENTER_EXTRAPOLATED])
+                        
                         track[BBOXES_EXTRAPOLATED] = tuple(make_extrapolated_bbox(track[CENTER_EXTRAPOLATED] + [track[BBOXES_ROLLING_MEAN][0], track[BBOXES_ROLLING_MEAN][1]]))
                         track[BBOXES].append(track[BBOXES_EXTRAPOLATED])
                         track[X].append(track[CENTER_EXTRAPOLATED][0])
                         track[Y].append(track[CENTER_EXTRAPOLATED][1])
                         track[W].append(track[BBOXES_ROLLING_MEAN][0])
                         track[H].append(track[BBOXES_ROLLING_MEAN][1])
+                        track[X_VECTOR].append(track['vector_rolling_mean_rotated'][0][0])
+                        track[Y_VECTOR].append(track['vector_rolling_mean_rotated'][0][1])
                         track[CENTER].append(tuple(track[CENTER_EXTRAPOLATED]))
                         track[FRAMES].append(int(frame_num))
-                        track[MODE] = 'Extrapolated'
                         track['mode_list'].append('Extrapolated')
                         track[CONFIDENCE].append(track[CONFIDENCE][-1])
                         track[CLASS].append(track[CLASS][-1])
                         
-                        
-                        temp[CLASS] = track[MAX_CLASS]
-                        temp[CONFIDENCE] = track[MAX_CONF]
-                        temp[X] = track[CENTER_EXTRAPOLATED][0]
-                        temp[Y] = track[CENTER_EXTRAPOLATED][1]
-                        temp[W] = track[BBOXES_ROLLING_MEAN][0]
-                        temp[H] = track[BBOXES_ROLLING_MEAN][1]
-                        temp['frame'] = best_match['frame']
-                        temp['occurrence'] = best_match['occurrence']
-                        temp['input_file_path'] = best_match['input_file_path']
-                        temp['interpolated-detection'] = best_match['interpolated-detection']
+                        # # Add tails of tracks not picked up again
+                        # temp = {}
+                        # temp[CLASS] = track[MAX_CLASS]
+                        # temp[CONFIDENCE] = track[MAX_CONF]
+                        # temp[X] = track[CENTER_EXTRAPOLATED][0]
+                        # temp[Y] = track[CENTER_EXTRAPOLATED][1]
+                        # temp[W] = track[BBOXES_ROLLING_MEAN][0]
+                        # temp[H] = track[BBOXES_ROLLING_MEAN][1]
+                        # temp['frame'] = best_match['frame']
+                        # temp['occurrence'] = best_match['occurrence']
+                        # temp['input_file_path'] = best_match['input_file_path']
+                        # temp['interpolated-detection'] = best_match['interpolated-detection']
                         
                         # new_detections[frame_num][track[TRACK_ID]] = temp
-                        
-                        del temp
-                        
-                        track[BBOXES_EXTRAPOLATED] = tuple(make_extrapolated_bbox(track[CENTER_EXTRAPOLATED] + [track[BBOXES_ROLLING_MEAN][0], track[BBOXES_ROLLING_MEAN][1]]))
-                        track[BBOXES].append(track[BBOXES_EXTRAPOLATED])
-                        track[CENTER].append(tuple(track[CENTER_EXTRAPOLATED]))
-                        track[FRAMES].append(int(frame_num))
-                        track[MODE] = 'Extrapolated'
-
 
                 # finish track when the conditions are met
                 if track[AGE] < t_miss_max:
@@ -332,6 +373,8 @@ def track_iou(
                     Y: [],
                     'VECTOR_ROLLING_MEAN_list': [],
                     'rolling_mean_center_list': [],
+                    'rolling_mean_angle': [],
+                    'vector_rolling_mean_rotated': [],
                     
                 }
             )

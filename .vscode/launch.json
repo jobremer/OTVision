@@ -124,6 +124,26 @@
             },
             "console": "integratedTerminal",
             "justMyCode": false
+        },
+        {
+            "name": "Python: Track Luecke Truck",
+            "type": "python",
+            "request": "launch",
+            "preLaunchTask": "Build detect debug environment",
+            "postDebugTask": "Tear down debug environment",
+            "program": "${workspaceFolder}/track.py",
+            "args": [
+                "--paths",
+                ".tmp/debug/OTCamera19_FR20_2023-05-24_07-17-15.otdet"
+            ],
+            "windows": {
+                "args": [
+                    "--path",
+                    "tests\\data\\OTCamera19_FR20_2023-05-24_07-17-15.otdet"
+                ]
+            },
+            "console": "integratedTerminal",
+            "justMyCode": false
         }
     ]
 }
