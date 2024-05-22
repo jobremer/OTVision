@@ -131,19 +131,17 @@ def get_direction_vector(track, best_match):
     
     return X_VECTOR, Y_VECTOR, AMOUNT_VECTOR
 
-def get_rolling_mean(first, second,
-                     t_min: int = CONFIG["TRACK"]["IOU"]["T_MIN"]):
+def get_rolling_mean(first, second, t_average: int = 5):
     x_cumsum = sum(first)
     y_cumsum = sum(second)
     
-    return [x_cumsum / float(t_min), y_cumsum / float(t_min)]
+    return [x_cumsum / float(t_average), y_cumsum / float(t_average)]
 
-def get_rolling_mean_BBox(first, second,
-                     t_min: int = CONFIG["TRACK"]["IOU"]["T_MIN"]):
+def get_rolling_mean_BBox(first, second, t_average: int = 5):
     x_cumsum = sum(first[-1:])
     y_cumsum = sum(second[-1:])
     
-    return [x_cumsum / float(t_min), y_cumsum / float(t_min)]
+    return [x_cumsum / float(t_average), y_cumsum / float(t_average)]
 
 # def get_rolling_mean(first, second, t_min: int = CONFIG["TRACK"]["IOU"]["T_MIN"]):
 #     nth_last_index = max(len(first) - 2, 0)  # Index des fünftletzten Elements
@@ -262,8 +260,8 @@ def track_iou(
                     track[CLASS].append(best_match[CLASS])
                     track[MAX_CONF] = max(track[MAX_CONF], best_match[CONFIDENCE])
                     track[AGE] = 0
-                    track[X].append(direction_vector[0])
-                    track[Y].append(direction_vector[1])
+                    track[X].append(best_match[X])
+                    track[Y].append(best_match[Y])
                     track[W].append(best_match[W])
                     track[H].append(best_match[H])
                     track[X_VECTOR].append(direction_vector[0])
@@ -302,18 +300,23 @@ def track_iou(
                     
                     elif track[MAX_CLASS] == 'pedestrian':
                         track['classmode_list'].append('pedestrian')
-                        track['rolling_mean_center'] = get_rolling_mean(first =  track[X_VECTOR][-5:],  second = track[Y_VECTOR][-5:])
+                        track['rolling_mean_center'] = get_rolling_mean(first =  track[X_VECTOR][-7:-2],  second = track[Y_VECTOR][-7:-2])
                         track['rolling_mean_center_list'].append(track['rolling_mean_center'])
-                        track[VECTOR_ROLLING_MEAN] = list((track['rolling_mean_center'][0], track['rolling_mean_center'][1]))
+                        if track['mode_list'][-1] == 'IOU': # factor in smaller vector of the last regular step because of partial Verdeckung                          
+                            track[VECTOR_ROLLING_MEAN] = list((track['rolling_mean_center'][0], track['rolling_mean_center'][1]))
+                            def multi(vector):
+                                return vector * 2
+                            track[VECTOR_ROLLING_MEAN] = list(map(multi,track[VECTOR_ROLLING_MEAN]))
+                        else:
+                            track[VECTOR_ROLLING_MEAN] = list((track['rolling_mean_center'][0], track['rolling_mean_center'][1]))
                         track['VECTOR_ROLLING_MEAN_list'].append(track[VECTOR_ROLLING_MEAN])
-                        rolling_mean_BBOX = get_rolling_mean(first =  track[W][-5:],  second = track[H][-5:])
-                        track[BBOXES_ROLLING_MEAN] = list((rolling_mean_BBOX[0], rolling_mean_BBOX[1]))
+                        if track['mode_list'][-1] == 'IOU': # Generate BBox only once
+                            rolling_mean_BBOX = get_rolling_mean(first =  track[W][-10:-5],  second = track[H][-10:-5], t_average = 5)
+                            track[BBOXES_ROLLING_MEAN] = list((rolling_mean_BBOX[0], rolling_mean_BBOX[1]))
                         
                         # Extrapolate BB with vector rolling means
                         track[CENTER_EXTRAPOLATED] = [a + b for a, b in zip(list(track[CENTER][-1]), track[VECTOR_ROLLING_MEAN])]
                         track['CENTER_EXTRAPOLATED_list'].append(track[CENTER_EXTRAPOLATED])
-                        
-                        
 
                     else:
                         track['classmode_list'].append('other')
@@ -321,7 +324,6 @@ def track_iou(
                         track['rolling_mean_center_list'].append(track['rolling_mean_center'])
                         if track['mode_list'][-1] == 'IOU': # factor in smaller vector of the last regular step because of partial Verdeckung                          
                             track[VECTOR_ROLLING_MEAN] = list((track['rolling_mean_center'][0], track['rolling_mean_center'][1]))
-                            
                             def multi(vector):
                                 return vector * 2
                             track[VECTOR_ROLLING_MEAN] = list(map(multi,track[VECTOR_ROLLING_MEAN]))
@@ -372,6 +374,39 @@ def track_iou(
 
                 # finish track when the conditions are met
                 if track[AGE] < t_miss_max:
+                    # Connect tracks if their ends / beginnings ant their vectors are close to each other and have  vector
+                    for i, track1 in enumerate(tracks_active):
+                        for j, track2 in enumerate(tracks_active):
+                            if len(track2[FRAMES]) > 3:
+                                def vector_norm(vector):
+                                    x = vector[0]
+                                    y = vector[1]
+                                    len = np.square(np.sqrt(x) + np.sqrt(y))
+                                    return [x/len, y/len]
+                                
+                                try:
+                                    track1['vector_norm'] = vector_norm(track1['vector_rolling_mean'])
+                                    track2['vector_norm'] = vector_norm(track2['vector_rolling_mean'])
+                                    
+                                except:
+                                    track1['vector_norm'] = [np.nan, np.nan]
+                                    track2['vector_norm'] = [np.nan, np.nan]
+                                def compare_vectors(vector1, vector2):
+                                    x1 = vector1[0]
+                                    y1 = vector1[1]
+                                    x2 = vector2[0]
+                                    y2 = vector2[1]
+                                    if abs(x1 - x2) >= 0.1 and abs(y1 - y2) >= 0.1:
+                                        return True
+                                    
+                            if i != j and len(track1[FRAMES]) > 2 and len(track2[FRAMES]) > 2:
+                                if track1['vector_norm'] != np.nan:
+                                    if abs(track1[FRAMES][-1] - track2[FRAMES][0]) <= 10 and abs(track1[X][-1] - track2[X][0]) <= 10 and abs(track1[Y][-1] - track2[Y][0]) <= 10 and compare_vectors(track1['vector_norm'], track2['vector_norm']) == True:
+                                        track2[TRACK_ID] = track1[TRACK_ID]
+                                else:
+                                    if abs(track1[FRAMES][-1] - track2[FRAMES][0]) <= 10 and abs(track1[X][-1] - track2[X][0]) <= 10 and abs(track1[Y][-1] - track2[Y][0]) <= 10:
+                                        track2[TRACK_ID] = track1[TRACK_ID]
+
                     track[AGE] += 1
                     saved_tracks.append(track)
                 elif (
@@ -424,7 +459,8 @@ def track_iou(
             det[FIRST] = True
             new_detections[frame_num][vehID] = det
         tracks_active = updated_tracks + saved_tracks + new_tracks
-
+        
+        
     # finish all remaining active tracks
     # tracks_finished += [
     #     track

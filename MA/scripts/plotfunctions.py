@@ -93,7 +93,7 @@ def plot_histogram(detections, xlim = 0, binwidth = 100, fontsize = 15, xText = 
         plt.savefig("Z:/Masterthesis/Images/" + savename + ".png")
     
 
-def plot_trajectory(detections, filepath, box, fontsize = 15, titletext = "", show_background = False, savename = "", marker = False):
+def plot_trajectory(detections, filepath, box, fontsize = 15, titletext = "", show_background = False, show_legend = False, savename = "", marker = False):
     import matplotlib.pyplot as plt
     import matplotlib.image as mpimg
     
@@ -121,7 +121,9 @@ def plot_trajectory(detections, filepath, box, fontsize = 15, titletext = "", sh
     plt.ylabel('y-Koordinate', size=fontsize, weight = 'bold')
     plt.xticks(fontsize=fontsize-2)
     plt.yticks(fontsize=fontsize-2)
-    # plt.legend(fontsize=8)
+    
+    if show_legend == True:
+        plt.legend(fontsize=8)
 
     # plt.xlim(0, 1296)
     # plt.ylim(0, 972)
