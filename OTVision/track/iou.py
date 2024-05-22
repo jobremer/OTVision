@@ -374,9 +374,10 @@ def track_iou(
 
                 # finish track when the conditions are met
                 if track[AGE] < t_miss_max:
-                    # Connect tracks if their ends / beginnings ant their vectors are close to each other and have  vector
+                    # Connect tracks if their ends / beginnings and their vectors are close to each other and have  vector
                     for i, track1 in enumerate(tracks_active):
                         for j, track2 in enumerate(tracks_active):
+                            # Include direction check
                             if len(track2[FRAMES]) > 3:
                                 def vector_norm(vector):
                                     x = vector[0]
@@ -392,7 +393,7 @@ def track_iou(
                                     track1['vector_norm'] = [np.nan, np.nan]
                                     track2['vector_norm'] = [np.nan, np.nan]
                                 def compare_vectors(vector1, vector2):
-                                    x1 = vector1[0]
+                                    x1 = vector1[   0]
                                     y1 = vector1[1]
                                     x2 = vector2[0]
                                     y2 = vector2[1]
