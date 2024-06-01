@@ -83,47 +83,17 @@ def make_bbox(obj: dict) -> tuple[float, float, float, float]:
     )
     
 def make_extrapolated_bbox(obj: list) -> list[float, float, float, float]:
-    """Calculates xyxy coordinates from dict of xywh.
-
-    Args:
-        obj (dict): dict of pixel values for xcenter, ycenter, width and height
-
-    Returns:
-        tuple[float, float, float, float]: xmin, ymin, xmay, ymax
-    """
-    
     liste = [obj[0] - obj[2] / 2,
              obj[1] - obj[3] / 2,
              obj[0] + obj[2] / 2,
              obj[1] + obj[3] / 2]
-        
-    
     return (liste)
 
 
 def center(obj: dict) -> tuple[float, float]:
-    """Retrieves center coordinates from dict.
-
-    Args:
-        obj (dict): _description_
-
-    Returns:
-        tuple[float, float]: _description_
-    """
     return obj[X], obj[Y]
 
-
 def get_direction_vector(track, best_match):
-    """
-    Calculate the x- & y- vectors and the vector amount for the current track and its best match
-
-    Args:
-        track (dict)
-        best_match (dict)
-
-    Returns:
-        list: [float, float, float]
-    """
     vector = [track[CENTER][-1], [best_match['x'], best_match['y']]]
     X_VECTOR = vector[-1][0] - vector[0][0]
     Y_VECTOR = vector[-1][1] - vector[0][1]
@@ -145,14 +115,6 @@ def get_rolling_mean_BBox(first, second,
     
     return [x_cumsum / float(t_min), y_cumsum / float(t_min)]
 
-# def get_rolling_mean(first, second, t_min: int = CONFIG["TRACK"]["IOU"]["T_MIN"]):
-#     nth_last_index = max(len(first) - 2, 0)  # Index des fünftletzten Elements
-#     t_min = min(t_min, len(first) - nth_last_index)  # Aktualisieren von t_min, um sicherzustellen, dass es nicht größer ist als die Anzahl der Elemente ab dem fünftletzten Element
-#     x_cumsum = sum(first[nth_last_index:])  # Die Summe beginnt beim fünftletzten Element
-#     y_cumsum = sum(second[nth_last_index:])  # Die Summe beginnt beim fünftletzten Element
-    
-#     return [x_cumsum / float(t_min), y_cumsum / float(t_min)]
-
 def get_rolling_mean_angle(vectors): # Written with help of ChatGPT3.5
     angles = []
     if len(vectors) > 1:
@@ -162,14 +124,7 @@ def get_rolling_mean_angle(vectors): # Written with help of ChatGPT3.5
 
             radians = np.arctan2(vec2[1], vec2[0]) - np.arctan2(vec1[1], vec1[0])
             degrees = np.degrees(radians)
-            # Konvertierung negativer Winkel in positive Winkel
-            # if degrees > 180:
-            #     degrees = degrees - 360
-            # elif degrees < -180:
-            #     degrees = degrees + 360
-            
             angles.append(degrees)
-    
     else:
         angles.append(0)
     
@@ -184,18 +139,6 @@ def rotate(vector, angle_degree): # Rotate vector
     newx = x*np.cos(angle_radian) - y*np.sin(angle_radian)
     newy = x*np.sin(angle_radian) + y*np.cos(angle_radian)
     return [newx, newy]
- 
-
-   
-
-# def get_rolling_mean3(first, second, t_min: int = CONFIG["TRACK"]["IOU"]["T_MIN"]):
-#     nth_last_index = max(len(first) - 5, 0)  # Index des fünftletzten Elements
-#     t_min = min(t_min, len(first) - nth_last_index)  # Aktualisieren von t_min, um sicherzustellen, dass es nicht größer ist als die Anzahl der Elemente ab dem fünftletzten Element
-#     x_cumsum = sum(first[nth_last_index:])  # Die Summe beginnt beim fünftletzten Element
-#     y_cumsum = sum(second[nth_last_index:])  # Die Summe beginnt beim fünftletzten Element
-    
-#     return [x_cumsum / float(t_min), y_cumsum / float(t_min)]
-
 
 def track_iou(
     detections: list,  # TODO: Type hint nested list during refactoring
@@ -226,14 +169,17 @@ def track_iou(
 
     _check_types(sigma_l, sigma_h, sigma_iou, t_min, t_miss_max)
 
-    print('Extended IOU')
-    
     tracks_active: list = []
     tracks_finished = []
     vehID: int = 0
     vehIDs_finished: list = []
     new_detections: dict = {}
-
+    
+    print("")
+    print("*******************************")
+    print("** Interpolated IOU-Tracking **")
+    print("*******************************")
+    
     for frame_num in tqdm(detections, desc="Tracked frames", unit="frames"):
         detections_frame = detections[frame_num][DETECTIONS]
         # apply low threshold to detections
@@ -246,15 +192,13 @@ def track_iou(
             direction_vector: list = []
             if dets: # check if dets in not empty
                 # get det with highest iou
-   
                 best_match = max(
                     dets, key=lambda x: iou(track[BBOXES][-1], make_bbox(x))
                     )
-                                                        
+                
                 direction_vector = get_direction_vector(track, best_match)
                 
-                
-                if (track['mode'] == 'IOU' and iou(track[BBOXES][-1], make_bbox(best_match)) >= sigma_iou) or (track['mode'] == 'Extrapolated' and iou(track[BBOXES][-1], make_bbox(best_match)) >= (sigma_iou - 0.)): # or extrapolated BB >= sigma_iou (smaller cutoff?)
+                if (track['mode'] == 'IOU' and iou(track[BBOXES][-1], make_bbox(best_match)) >= sigma_iou) or (track[CLASS] == 'pedestrian' and iou(track[BBOXES][-1], make_bbox(best_match)) >= (sigma_iou - 0.2)): # or extrapolated BB >= sigma_iou (smaller cutoff?)
                     track[FRAMES].append(int(frame_num))
                     track[BBOXES].append(make_bbox(best_match))
                     track[CENTER].append(center(best_match))
@@ -269,7 +213,6 @@ def track_iou(
                     track[X_VECTOR].append(direction_vector[0])
                     track[Y_VECTOR].append(direction_vector[1])
                     track['vector_rolling_mean_rotated'].append([direction_vector[0], direction_vector[1]])
-                    # track[VECTOR_AMOUNT].append(direction_vector[2])
                     track['mode_list'].append('IOU')
                     
                     
@@ -288,7 +231,7 @@ def track_iou(
             if not updated_tracks or track is not updated_tracks[-1]:
                 if track[AGE] <= 10 and len(track['frames']) >= 5: #t_extrapolate
                     if track[MAX_CLASS] == 'bicycle':
-                        track['classmode_list'].append('bicycle')
+                        # track['classmode_list'].append('bicycle')
                         track['rolling_mean_center'] = get_rolling_mean(first =  track[X_VECTOR][-5:],  second = track[Y_VECTOR][-5:])
                         track['rolling_mean_center_list'].append(track['rolling_mean_center'])
                         track[VECTOR_ROLLING_MEAN] = list((track['rolling_mean_center'][0], track['rolling_mean_center'][1]))
@@ -301,11 +244,11 @@ def track_iou(
                         track['CENTER_EXTRAPOLATED_list'].append(track[CENTER_EXTRAPOLATED])
                     
                     elif track[MAX_CLASS] == 'pedestrian':
-                        track['classmode_list'].append('pedestrian')
+                        # track['classmode_list'].append('pedestrian')
                         track['rolling_mean_center'] = get_rolling_mean(first =  track[X_VECTOR][-5:],  second = track[Y_VECTOR][-5:])
                         track['rolling_mean_center_list'].append(track['rolling_mean_center'])
                         track[VECTOR_ROLLING_MEAN] = list((track['rolling_mean_center'][0], track['rolling_mean_center'][1]))
-                        track['VECTOR_ROLLING_MEAN_list'].append(track[VECTOR_ROLLING_MEAN])
+                        # track['VECTOR_ROLLING_MEAN_list'].append(track[VECTOR_ROLLING_MEAN])
                         rolling_mean_BBOX = get_rolling_mean(first =  track[W][-5:],  second = track[H][-5:])
                         track[BBOXES_ROLLING_MEAN] = list((rolling_mean_BBOX[0], rolling_mean_BBOX[1]))
                         
@@ -316,7 +259,7 @@ def track_iou(
                         
 
                     else:
-                        track['classmode_list'].append('other')
+                        # track['classmode_list'].append('other')
                         track['rolling_mean_center'] = get_rolling_mean(first =  track[X_VECTOR][-7:-2],  second = track[Y_VECTOR][-7:-2])
                         track['rolling_mean_center_list'].append(track['rolling_mean_center'])
                         if track['mode_list'][-1] == 'IOU': # factor in smaller vector of the last regular step because of partial Verdeckung                          
@@ -327,7 +270,7 @@ def track_iou(
                             track[VECTOR_ROLLING_MEAN] = list(map(multi,track[VECTOR_ROLLING_MEAN]))
                         else:
                             track[VECTOR_ROLLING_MEAN] = list((track['rolling_mean_center'][0], track['rolling_mean_center'][1]))
-                        track['VECTOR_ROLLING_MEAN_list'].append(track[VECTOR_ROLLING_MEAN])
+                        # track['VECTOR_ROLLING_MEAN_list'].append(track[VECTOR_ROLLING_MEAN])
                         rolling_mean_BBOX = get_rolling_mean(first =  track[W][-7:-2],  second = track[H][-7:-2])
                         track[BBOXES_ROLLING_MEAN] = list((rolling_mean_BBOX[0], rolling_mean_BBOX[1]))
                         
