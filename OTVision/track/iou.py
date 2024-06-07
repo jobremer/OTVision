@@ -1,5 +1,6 @@
 """
 OTVision module to track road users in frames detected by OTVision
+Extended by Bounding Box extrapolation to overcome tracks gaps
 """
 # based on IOU Tracker written by Erik Bochinski originally licensed under the
 # MIT License, see
@@ -44,11 +45,6 @@ from OTVision.dataformat import (
     Y,
     X_VECTOR,
     Y_VECTOR,
-    VECTOR_AMOUNT,
-    DIRECTION_VECTOR,
-    VECTOR_AMOUNT_ROLLING_MEAN,
-    X_VECTOR_ROLLING_MEAN,
-    Y_VECTOR_ROLLING_MEAN,
     VECTOR_ROLLING_MEAN,
     CENTER_EXTRAPOLATED,
     BBOXES_EXTRAPOLATED,
@@ -83,6 +79,15 @@ def make_bbox(obj: dict) -> tuple[float, float, float, float]:
     )
     
 def make_extrapolated_bbox(obj: list) -> list[float, float, float, float]:
+    """Calculates xyxy coordinates from list of xywh.
+
+    Args:
+        obj (list): list of pixel values for xcenter, ycenter, width and height
+
+    Returns:
+        list[float, float, float, float]: xmin, ymin, xmax, ymax
+    """
+    
     liste = [obj[0] - obj[2] / 2,
              obj[1] - obj[3] / 2,
              obj[0] + obj[2] / 2,
@@ -94,6 +99,15 @@ def center(obj: dict) -> tuple[float, float]:
     return obj[X], obj[Y]
 
 def get_direction_vector(track, best_match):
+    """Calculates the direction vector between the last center of a track and the center of the best match.
+
+    Args:
+        track (dict): Track dictionary containing center coordinates.
+        best_match (dict): Best matching detection containing x and y coordinates.
+
+    Returns:
+        tuple[float, float, float]: X vector, Y vector, and vector magnitude.
+    """
     vector = [track[CENTER][-1], [best_match['x'], best_match['y']]]
     X_VECTOR = vector[-1][0] - vector[0][0]
     Y_VECTOR = vector[-1][1] - vector[0][1]
@@ -103,6 +117,16 @@ def get_direction_vector(track, best_match):
 
 def get_rolling_mean(first, second,
                      t_min: int = CONFIG["TRACK"]["IOU"]["T_MIN"]):
+    """Calculates the rolling mean for the given vectors.
+
+    Args:
+        first (list): List of first set of values.
+        second (list): List of second set of values.
+        t_min (int, optional): Minimum track length in frames. Defaults to CONFIG["TRACK"]["IOU"]["T_MIN"].
+
+    Returns:
+        list[float, float]: Rolling mean of the vectors.
+    """
     x_cumsum = sum(first)
     y_cumsum = sum(second)
     
@@ -110,12 +134,30 @@ def get_rolling_mean(first, second,
 
 def get_rolling_mean_BBox(first, second,
                      t_min: int = CONFIG["TRACK"]["IOU"]["T_MIN"]):
+    """Calculates the rolling mean for bounding box dimensions.
+
+    Args:
+        first (list): List of first set of values.
+        second (list): List of second set of values.
+        t_min (int, optional): Minimum track length in frames. Defaults to CONFIG["TRACK"]["IOU"]["T_MIN"].
+
+    Returns:
+        list[float, float]: Rolling mean of the bounding box dimensions.
+    """
     x_cumsum = sum(first[-1:])
     y_cumsum = sum(second[-1:])
     
     return [x_cumsum / float(t_min), y_cumsum / float(t_min)]
 
 def get_rolling_mean_angle(vectors): # Written with help of ChatGPT3.5
+    """Calculates the rolling mean angle between consecutive vectors.
+
+    Args:
+        vectors (list): List of vectors.
+
+    Returns:
+        float: Rolling mean angle in degrees.
+    """
     angles = []
     if len(vectors) > 1:
         for i in range(len(vectors) - 1):
@@ -133,12 +175,33 @@ def get_rolling_mean_angle(vectors): # Written with help of ChatGPT3.5
     mean_angle = np.median(angles[-5:])
     return mean_angle
 
-def rotate(vector, angle_degree): # Rotate vector
+def rotate(vector, angle_degree): # Written with help of ChatGPT3.5
+    """Rotates a vector by a given angle.
+
+    Args:
+        vector (tuple[float, float]): The vector to rotate.
+        angle_degree (float): The angle in degrees to rotate the vector.
+
+    Returns:
+        list[float, float]: The rotated vector.
+    """
     (x,y) = vector
     angle_radian = angle_degree*np.pi/180
     newx = x*np.cos(angle_radian) - y*np.sin(angle_radian)
     newy = x*np.sin(angle_radian) + y*np.cos(angle_radian)
     return [newx, newy]
+
+def multi(vector):
+    """
+    Multiplies the vector by 2.
+
+    Args:
+        vector (list[float]): The vector to be multiplied.
+
+    Returns:
+        list[float]: The vector with each element multiplied by 2.
+    """
+    return vector * 2
 
 def track_iou(
     detections: list,  # TODO: Type hint nested list during refactoring
@@ -150,10 +213,9 @@ def track_iou(
     t_extrapolate: int = CONFIG["TRACK"]["IOU"]["T_EXTRAPOLATE"],
 ) -> dict:  # sourcery skip: low-code-quality
     """
-    Simple IOU based tracker.
+    Simple IOU based tracker extended by Bounding Box extrapolation to overcome gaps in a track.
     See "High-Speed Tracking-by-Detection Without Using Image Information
-    by E. Bochinski, V. Eiselein, T. Sikora" for
-    more information.
+    by E. Bochinski, V. Eiselein, T. Sikora" for more information.
 
     Args:
         detections (list): list of detections per frame, usually generated
@@ -162,6 +224,8 @@ def track_iou(
         sigma_h (float): high detection threshold.
         sigma_iou (float): IOU threshold.
         t_min (float): minimum track length in frames.
+        t_miss_max (int): Maximum number of frames a track can be missed.
+        t_extrapolate (int): Number of frames to extrapolate when a track is missed.
 
     Returns:
         list: list of tracks.
@@ -256,17 +320,12 @@ def track_iou(
                         track[CENTER_EXTRAPOLATED] = [a + b for a, b in zip(list(track[CENTER][-1]), track[VECTOR_ROLLING_MEAN])]
                         track['CENTER_EXTRAPOLATED_list'].append(track[CENTER_EXTRAPOLATED])
                         
-                        
-
                     else:
                         # track['classmode_list'].append('other')
                         track['rolling_mean_center'] = get_rolling_mean(first =  track[X_VECTOR][-7:-2],  second = track[Y_VECTOR][-7:-2])
                         track['rolling_mean_center_list'].append(track['rolling_mean_center'])
                         if track['mode_list'][-1] == 'IOU': # factor in smaller vector of the last regular step because of partial Verdeckung                          
                             track[VECTOR_ROLLING_MEAN] = list((track['rolling_mean_center'][0], track['rolling_mean_center'][1]))
-                            
-                            def multi(vector):
-                                return vector * 2
                             track[VECTOR_ROLLING_MEAN] = list(map(multi,track[VECTOR_ROLLING_MEAN]))
                         else:
                             track[VECTOR_ROLLING_MEAN] = list((track['rolling_mean_center'][0], track['rolling_mean_center'][1]))
